@@ -12,6 +12,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 bot = telebot.TeleBot(os.getenv('TOKEN'))
+db = Database()
 
 PRIORITY_EMOJIS = {
     5: "🔴‼️",
@@ -22,7 +23,7 @@ PRIORITY_EMOJIS = {
     0: "⚪"
 }
 
-#def send_daily_reminders()
+def send_daily_reminders()
 def scheduler():
     schedule.every().day.at("08:00").do(send_daily_reminders)
     
