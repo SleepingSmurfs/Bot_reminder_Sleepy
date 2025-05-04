@@ -13,8 +13,24 @@ load_dotenv()
 
 bot = telebot.TeleBot(os.getenv('TOKEN'))
 
+PRIORITY_EMOJIS = {
+    5: "🔴‼️",
+    4: "🟠",
+    3: "🟡",
+    2: "🟢",
+    1: "🔵",
+    0: "⚪"
+}
+
 #def send_daily_reminders()
-#def scheduler()
+def scheduler():
+    schedule.every().day.at("08:00").do(send_daily_reminders)
+    
+    while True:
+        schedule.run_pending()
+        time.sleep(1)
+
+threading.Thread(target=scheduler, daemon=True).start()
 
 @bot.message_handler(commands=['start'])
 def start(message):
@@ -24,6 +40,9 @@ def start(message):
     markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
     button1 = types.KeyboardButton('➕ Добавить напоминание')
     button2 = types.KeyboardButton('📋 Мои напоминания')
+    button3 = types.KeyboardButton('❌ Удалить напоминание')
+    button4 = types.KeyboardButton('🗑️ История удаленных')
+    markup.add(button1, button2, button3, button4)
     
     bot.send_message(
         message.chat.id, f"Привет, {user.first_name}! Я бот Sleepy_smurf для напоминаний заданий на день ну и всю неделю.\n"
@@ -92,7 +111,7 @@ def add_reminder_step4(message, text, ptiority):
         f"✅ Напоминание добавлено!\n"
         f"Текст: {text}\n"
         f"Приоритет: {priority}\n"
-        f"Активно до: {datetime.now().strftime('%d.%m.%Y')}",
+        f"Активно до: {(datetime.now()+ timedelta(days=days)).strftime('%d.%m.%Y')}",
         reply_markup=types.ReplyKeyboardRemove()
     )
 
@@ -102,7 +121,8 @@ def show_reminders(message):
     message_text = "📋 *Ваши активные напоминания:*\n\n"
     for reminder in reminders:
         text, priority = reminder
-        message_text += f" *{text}* (Приоритет: {priority}/5)\n\n"
+        emoji = PRIORITY_EMOJIS.get(priority, "")
+        message_text += f" {emoji} *{text}* (Приоритет: {priority}/5)\n\n"
     
     
     bot.send_message(
@@ -111,6 +131,14 @@ def show_reminders(message):
         parse_mode="Markdown"
     )
 
+
+# @bot.message_handler(func=lambda message: message.text == '❌ Удалить напоминание')
+
+
+# @bot.message_handler(func=lambda message: message.text.startswith('Удалить #'))
+
+
+# @bot.message_handler(commands=['history'])
 
 if __name__ == '__main__':
     print("Bot is cooking!")
