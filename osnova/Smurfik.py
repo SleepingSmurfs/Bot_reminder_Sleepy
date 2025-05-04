@@ -52,14 +52,65 @@ def add_reminder_step2(message):
         "Выбери приоритет (0-5), где 0 - низкий, 5 - очень высокий:",
         reply_markup=markup
     )
-    bot.register_next_step_handler(msg, add_reminder_step3)
+    bot.register_next_step_handler(msg, add_reminder_step3, text)
     
-def add_reminder_step3(message):
-def add_reminder_step4(message):
+    
+def add_reminder_step3(message, text):
+    try:
+        priority = int(message.text)
+        if (priority < 0) or (priority > 5):
+            raise ValueError
+    except ValueError:
+        bot.send_message(message.chat.id, "Пожалуйста, введи число от 0 до 5")
+        return
+    
+    
+    markup = types.ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=True)
+    for i in range(1, 8):
+        markup.add(types.KeyboardButton(str(i)))
+    
+    
+    msg = bot.send_message(
+         message.chat.id,
+         "На сколько дней установить напоминание (1-7)?",
+        reply_markup=markup
+    )
+    bot.register_next_step_handler(msg, add_reminder_step4, text, priority)
+
+
+def add_reminder_step4(message, text, ptiority):
+    try:
+        priority = int(message.text)
+        if (priority < 1) or (priority > 7):
+            raise ValueError
+    except ValueError:
+        bot.send_message(message.chat.id, "Пожалуйста, введи насколько дней недели сохранить напоминание 1 до 7")
+        return
+    
+    bot.send_message(
+        message.chat.id,
+        f"✅ Напоминание добавлено!\n"
+        f"Текст: {text}\n"
+        f"Приоритет: {priority}\n"
+        f"Активно до: {datetime.now().strftime('%d.%m.%Y')}",
+        reply_markup=types.ReplyKeyboardRemove()
+    )
 
 
 @bot.message_handler(func=lambda message: message.text == '📋 Мои напоминания')
 def show_reminders(message):
+    message_text = "📋 *Ваши активные напоминания:*\n\n"
+    for reminder in reminders:
+        text, priority = reminder
+        message_text += f" *{text}* (Приоритет: {priority}/5)\n\n"
+    
+    
+    bot.send_message(
+        message.chat.id,
+        message_text,
+        parse_mode="Markdown"
+    )
+
 
 if __name__ == '__main__':
     print("Bot is cooking!")
