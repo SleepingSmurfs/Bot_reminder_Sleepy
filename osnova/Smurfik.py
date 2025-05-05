@@ -23,9 +23,27 @@ PRIORITY_EMOJIS = {
     0: "⚪"
 }
 
-def send_daily_reminders()
+def send_daily_reminders():
+    users = db.get_all_users()
+    for user_id in users:
+        reminders = db.get_today_reminders(user_id)
+        if reminders:
+            message = "📅 *Ваши задачи на сегодня:*\n\n"
+            for reminder in reminders:
+                for reminder in reminders:
+                    id_, text, priority = reminder
+                    emoji = PRIORITY_EMOJIS.get(priority, "")
+                    message += f"{emoji} *{text}* (Приоритет: {priority}/5)\n\n"
+            
+            try:
+                bot.send_message(user_id, message, parse_mode="Markdown")
+            except Exception as e:
+                print(f"Не удалось отправить сообщение пользователю {user_id}: {e}")
+                
+                
 def scheduler():
     schedule.every().day.at("08:00").do(send_daily_reminders)
+    schedule.every().day.at("00:00").do(db.delete_old_reminders)
     
     while True:
         schedule.run_pending()
@@ -98,7 +116,7 @@ def add_reminder_step3(message, text):
     bot.register_next_step_handler(msg, add_reminder_step4, text, priority)
 
 
-def add_reminder_step4(message, text, ptiority):
+def add_reminder_step4(message, text, ptiority, days):
     try:
         priority = int(message.text)
         if (priority < 1) or (priority > 7):
@@ -107,6 +125,7 @@ def add_reminder_step4(message, text, ptiority):
         bot.send_message(message.chat.id, "Пожалуйста, введи насколько дней недели сохранить напоминание 1 до 7")
         return
     
+    reminder_id = db.add_reminder(message.chat.id, text, priority, days)
     bot.send_message(
         message.chat.id,
         f"✅ Напоминание добавлено!\n"
@@ -119,6 +138,12 @@ def add_reminder_step4(message, text, ptiority):
 
 @bot.message_handler(func=lambda message: message.text == '📋 Мои напоминания')
 def show_reminders(message):
+    reminders = db.get_today_reminders(message.chat.id)
+    if not reminders:
+        bot.send_message(message.chat.id, "У вас нет активностей на сегодня. валяем дурака")
+        return
+    
+    
     message_text = "📋 *Ваши активные напоминания:*\n\n"
     for reminder in reminders:
         text, priority = reminder
