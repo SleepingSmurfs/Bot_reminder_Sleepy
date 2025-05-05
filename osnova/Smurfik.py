@@ -43,7 +43,7 @@ def send_daily_reminders():
                 
 def scheduler():
     schedule.every().day.at("08:00").do(send_daily_reminders)
-    schedule.every().day.at("00:00").do(db.delete_old_reminders)
+    # schedule.every().day.at("00:00").do(db.delete_old_reminders)
     
     while True:
         schedule.run_pending()
@@ -116,9 +116,9 @@ def add_reminder_step3(message, text):
     bot.register_next_step_handler(msg, add_reminder_step4, text, priority)
 
 
-def add_reminder_step4(message, text, ptiority, days):
+def add_reminder_step4(message, text, priority):
     try:
-        priority = int(message.text)
+        days = int(message.text)
         if (priority < 1) or (priority > 7):
             raise ValueError
     except ValueError:
