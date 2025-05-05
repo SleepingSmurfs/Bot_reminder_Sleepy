@@ -72,7 +72,16 @@ class Database:
     
     
     def execute_safe(self, query, params=None):
-        df
+        try:
+            with self.conn.cursor() as cur:
+                cur.execute(query, params or ())
+                self.conn.commit()
+                return True
+        except psycopg2.Error as e:
+            logger.error(f"Ошибка базы данных: {e}")
+            self.conn.rollback()
+            return False
+            
     
     def fetch_safe(self, query, params=None):
         try:
@@ -85,7 +94,11 @@ class Database:
         
         
     def add_user(self,  user_id, username, first_name, last_name):
-        df
+        return self.execute_safe("""
+            INSERT INTO users (user_id, username, first_name, last_name)
+            VALUES (%s, %s, %s, %s)
+            ON CONFLICT (user_id) DO NOTHING
+        """, (user_id, username, first_name, last_name))
         
         
     def add_reminder(self, user_id, text, priority, days):
