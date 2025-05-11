@@ -8,6 +8,7 @@ import telebot
 from telebot import types
 from json_database import JSONDatabase
 load_dotenv()
+# Настройка логгера
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
@@ -19,8 +20,9 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 bot = telebot.TeleBot(os.getenv('TOKEN'))
-db = JSONDatabase('reminders_data.json')
+db = JSONDatabase('reminders_data.json')  # Инициализируем JSON базу данных
 
+# Эмодзи для приоритетов
 PRIORITY_EMOJIS = {
     5: "🔴‼️",
     4: "🟠",
@@ -31,7 +33,7 @@ PRIORITY_EMOJIS = {
 }
 
 def send_daily_reminders():
-    """Отправляет напоминания всем пользователям с обработкой ошибок"""
+    """Отправляет напоминания, срок которых истекает сегодня"""
     try:
         users = db.get_all_users()
         if not users:
@@ -40,7 +42,7 @@ def send_daily_reminders():
 
         for user_id in users:
             try:
-                reminders = db.get_today_reminders(user_id)
+                reminders = db.get_current_day_reminders(user_id)
                 if not reminders:
                     continue
                     
@@ -54,10 +56,8 @@ def send_daily_reminders():
                 
                 try:
                     bot.send_message(user_id, message, parse_mode="Markdown")
-                except telebot.apihelper.ApiException as e:
-                    logger.error(f"Ошибка Telegram API при отправке пользователю {user_id}: {e}")
                 except Exception as e:
-                    logger.error(f"Неизвестная ошибка при отправке пользователю {user_id}: {e}")
+                    logger.error(f"Ошибка при отправке пользователю {user_id}: {e}")
 
             except Exception as e:
                 logger.error(f"Ошибка обработки пользователя {user_id}: {e}")
@@ -74,14 +74,16 @@ def check_scheduled_tasks():
         # Ежедневная рассылка в 8:00
         if current_time.hour == 8 and current_time.minute == 0:
             send_daily_reminders()
-            time.sleep(60)
+            time.sleep(60)  # Защита от дублирования
         
+        # Удаление старых напоминаний в 00:00
         if current_time.hour == 0 and current_time.minute == 0:
             db.delete_old_reminders()
             time.sleep(60)
         
-        time.sleep(30)
+        time.sleep(30)  # Проверяем каждые 30 секунд
 
+# Запускаем планировщик в фоновом режиме
 threading.Thread(target=check_scheduled_tasks, daemon=True).start()
 
 @bot.message_handler(commands=['start'])
@@ -180,6 +182,15 @@ def add_reminder_step4(message, text, priority):
             raise Exception("Не удалось добавить напоминание")
             
         expires_date = (datetime.now() + timedelta(days=days)).strftime('%d.%m.%Y')
+        
+        # Создаем клавиатуру с основными кнопками
+        markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
+        btn1 = types.KeyboardButton('➕ Добавить напоминание')
+        btn2 = types.KeyboardButton('📋 Мои напоминания')
+        btn3 = types.KeyboardButton('❌ Удалить напоминание')
+        btn4 = types.KeyboardButton('🗑 История удаленных')
+        markup.add(btn1, btn2, btn3, btn4)
+        
         bot.send_message(
             message.chat.id,
             f"✅ Напоминание добавлено!\n"
@@ -187,7 +198,7 @@ def add_reminder_step4(message, text, priority):
             f"Текст: {text}\n"
             f"Приоритет: {priority}\n"
             f"Активно до: {expires_date}",
-            reply_markup=types.ReplyKeyboardRemove()
+            reply_markup=markup  # Добавляем клавиатуру с кнопками
         )
     except Exception as e:
         logger.error(f"Ошибка в add_reminder_step4: {e}")
@@ -200,9 +211,10 @@ def add_reminder_step4(message, text, priority):
 @bot.message_handler(func=lambda message: message.text == '📋 Мои напоминания')
 def show_reminders(message):
     try:
+        # Получаем все активные напоминания (не только на сегодня)
         reminders = db.get_today_reminders(message.chat.id)
         if not reminders:
-            bot.send_message(message.chat.id, "У вас нет активных напоминаний на сегодня.")
+            bot.send_message(message.chat.id, "У вас нет активных напоминаний.")
             return
         
         message_text = "📋 *Ваши активные напоминания:*\n\n"
@@ -211,7 +223,15 @@ def show_reminders(message):
             text = reminder['text']
             priority = reminder['priority']
             emoji = PRIORITY_EMOJIS.get(priority, "")
-            message_text += f"{emoji} *{text}* (Приоритет: {priority}/5)\nID: {id_}\n\n"
+            expires_at = datetime.fromisoformat(db.data['reminders'][str(id_)]['expires_at'])
+            expires_str = expires_at.strftime('%d.%m.%Y')
+            
+            message_text += (
+                f"{emoji} *{text}*\n"
+                f"Приоритет: {priority}/5\n"
+                f"ID: {id_}\n"
+                f"Активно до: {expires_str}\n\n"
+            )
         
         bot.send_message(
             message.chat.id,
@@ -260,6 +280,7 @@ def process_deletion(message):
             
         reminder_id = int(message.text.split('#')[1].split(':')[0])
         
+        # Создаем inline-клавиатуру для подтверждения
         markup = types.InlineKeyboardMarkup()
         markup.add(
             types.InlineKeyboardButton("✅ Да", callback_data=f"del_confirm_{reminder_id}"),

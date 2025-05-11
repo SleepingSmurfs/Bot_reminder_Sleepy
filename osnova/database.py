@@ -13,7 +13,6 @@ logging.basicConfig(
         logging.StreamHandler()
     ]
 )
-
 logger = logging.getLogger(__name__)
 
 class JSONDatabase:
@@ -78,7 +77,25 @@ class JSONDatabase:
         return None
 
     def get_today_reminders(self, user_id: int) -> List[Dict[str, Any]]:
-        """Возвращает напоминания на сегодня"""
+        """Возвращает все активные напоминания пользователя (не только на сегодня)"""
+        now = datetime.now()
+        result = []
+        
+        for reminder_id, reminder in self.data['reminders'].items():
+            if (reminder['user_id'] == user_id and 
+                datetime.fromisoformat(reminder['expires_at']) >= now and 
+                not reminder['is_completed']):
+                result.append({
+                    'id': int(reminder_id),
+                    'text': reminder['text'],
+                    'priority': reminder['priority']
+                })
+        
+        # Сортировка по приоритету (по убыванию)
+        return sorted(result, key=lambda x: x['priority'], reverse=True)
+    
+    def get_current_day_reminders(self, user_id: int) -> List[Dict[str, Any]]:
+        """Возвращает напоминания, срок которых истекает сегодня"""
         today = datetime.now().date()
         tomorrow = today + timedelta(days=1)
         result = []
@@ -110,6 +127,7 @@ class JSONDatabase:
         if reminder['user_id'] != user_id:
             return False
             
+        # Добавляем в историю
         self.data['deleted_reminders'].append({
             'original_id': reminder_id,
             'user_id': user_id,
@@ -120,6 +138,7 @@ class JSONDatabase:
             'reason': reason
         })
         
+        # Удаляем из активных
         del self.data['reminders'][reminder_key]
         
         return self.save_data()
@@ -138,6 +157,7 @@ class JSONDatabase:
         now = datetime.now()
         month_ago = now - timedelta(days=30)
         
+        # Переносим просроченные напоминания в историю
         for reminder_id, reminder in list(self.data['reminders'].items()):
             expires_at = datetime.fromisoformat(reminder['expires_at'])
             if expires_at < now:
@@ -152,6 +172,7 @@ class JSONDatabase:
                 })
                 del self.data['reminders'][reminder_id]
         
+        # Чистим старую историю
         self.data['deleted_reminders'] = [
             r for r in self.data['deleted_reminders']
             if datetime.fromisoformat(r['deleted_at']) >= month_ago
