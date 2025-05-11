@@ -286,7 +286,6 @@ def process_deletion(message):
             types.InlineKeyboardButton("✅ Да", callback_data=f"del_confirm_{reminder_id}"),
             types.InlineKeyboardButton("❌ Нет", callback_data="del_cancel")
         )
-        
         bot.send_message(
             message.chat.id,
             "Вы уверены, что хотите удалить это напоминание?",
@@ -339,7 +338,6 @@ def show_deleted_history(message):
         if not deleted:
             bot.send_message(message.chat.id, "У вас нет удаленных напоминаний.")
             return
-        
         response = "🗑 *История удаленных напоминаний:*\n\n"
         for item in deleted:
             original_id = item['original_id']

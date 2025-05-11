@@ -4,7 +4,6 @@ from datetime import datetime, timedelta
 import logging
 from typing import Dict, List, Optional, Any
 
-# Настройка логгера
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
@@ -91,7 +90,6 @@ class JSONDatabase:
                     'priority': reminder['priority']
                 })
         
-        # Сортировка по приоритету (по убыванию)
         return sorted(result, key=lambda x: x['priority'], reverse=True)
     
     def get_current_day_reminders(self, user_id: int) -> List[Dict[str, Any]]:
@@ -127,7 +125,6 @@ class JSONDatabase:
         if reminder['user_id'] != user_id:
             return False
             
-        # Добавляем в историю
         self.data['deleted_reminders'].append({
             'original_id': reminder_id,
             'user_id': user_id,
@@ -138,7 +135,6 @@ class JSONDatabase:
             'reason': reason
         })
         
-        # Удаляем из активных
         del self.data['reminders'][reminder_key]
         
         return self.save_data()
@@ -157,7 +153,6 @@ class JSONDatabase:
         now = datetime.now()
         month_ago = now - timedelta(days=30)
         
-        # Переносим просроченные напоминания в историю
         for reminder_id, reminder in list(self.data['reminders'].items()):
             expires_at = datetime.fromisoformat(reminder['expires_at'])
             if expires_at < now:
@@ -172,7 +167,6 @@ class JSONDatabase:
                 })
                 del self.data['reminders'][reminder_id]
         
-        # Чистим старую историю
         self.data['deleted_reminders'] = [
             r for r in self.data['deleted_reminders']
             if datetime.fromisoformat(r['deleted_at']) >= month_ago
