@@ -8,7 +8,6 @@ import telebot
 from telebot import types
 from json_database import JSONDatabase
 load_dotenv()
-# Настройка логгера
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
@@ -20,9 +19,8 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 bot = telebot.TeleBot(os.getenv('TOKEN'))
-db = JSONDatabase('reminders_data.json')  # Инициализируем JSON базу данных
+db = JSONDatabase('reminders_data.json')
 
-# Эмодзи для приоритетов
 PRIORITY_EMOJIS = {
     5: "🔴‼️",
     4: "🟠",
@@ -76,16 +74,14 @@ def check_scheduled_tasks():
         # Ежедневная рассылка в 8:00
         if current_time.hour == 8 and current_time.minute == 0:
             send_daily_reminders()
-            time.sleep(60)  # Защита от дублирования
+            time.sleep(60)
         
-        # Удаление старых напоминаний в 00:00
         if current_time.hour == 0 and current_time.minute == 0:
             db.delete_old_reminders()
             time.sleep(60)
         
-        time.sleep(30)  # Проверяем каждые 30 секунд
+        time.sleep(30)
 
-# Запускаем планировщик в фоновом режиме
 threading.Thread(target=check_scheduled_tasks, daemon=True).start()
 
 @bot.message_handler(commands=['start'])
@@ -264,7 +260,6 @@ def process_deletion(message):
             
         reminder_id = int(message.text.split('#')[1].split(':')[0])
         
-        # Создаем inline-клавиатуру для подтверждения
         markup = types.InlineKeyboardMarkup()
         markup.add(
             types.InlineKeyboardButton("✅ Да", callback_data=f"del_confirm_{reminder_id}"),
